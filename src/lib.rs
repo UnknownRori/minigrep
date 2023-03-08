@@ -1,34 +1,41 @@
-use std::env;
+use std::{env, error::Error};
 
-enum ErrorKind {
+pub enum ErrorKind {
+    QueryEmpty,
+    FilenameEmpty,
     ParseArgs,
-    OpenFile,
+    OpenFile(Box<dyn Error>),
+    NotEnoughArgs(usize),
 }
 
-struct Application<'a> {
-    config: Config<'a>,
+#[derive(Debug)]
+pub struct Application {
+    config: Config,
 }
 
-struct Config<'a> {
-    query: &'a str,
-    filename: &'a str,
+#[derive(Debug)]
+struct Config {
+    query: String,
+    filename: String,
     case_sensitive: bool,
 }
 
 struct Parser;
 
-impl<'a> Application<'a> {
-    fn new() -> Application<'a> {
-        todo!()
+impl Application {
+    pub fn new() -> Result<Application, ErrorKind> {
+        Ok(Application {
+            config: Config::parse()?,
+        })
     }
 
-    fn parse() -> Vec<&'a str> {
+    pub fn parse() -> Result<Vec<String>, ErrorKind> {
         todo!()
     }
 }
 
-impl<'a> Config<'a> {
-    fn new(filename: &'a str, query: &'a str, case_sensitive: bool) -> Config<'a> {
+impl Config {
+    fn new(filename: String, query: String, case_sensitive: bool) -> Config {
         Config {
             filename,
             query,
@@ -36,18 +43,81 @@ impl<'a> Config<'a> {
         }
     }
 
-    fn parse() -> Result<Config<'a>, ErrorKind> {
-        let args = env::args();
+    fn parse() -> Result<Config, ErrorKind> {
+        let mut args: Vec<String> = env::args().collect();
+        args.remove(0);
 
         if args.len() < 2 {
-            return Err(ErrorKind::ParseArgs);
+            return Err(ErrorKind::NotEnoughArgs(args.len()));
         }
 
-        //properly parse cmd args to make config struct
+        let mut filename: String = String::new();
+        let mut query: String = String::new();
+        let mut case_sensitive = false;
+        for mut i in 0..args.len() {
+            let arg = args.get(i);
+
+            if arg.is_none() {
+                break;
+            }
+
+            // Todo : Refactor this
+            match arg.unwrap().as_str() {
+                "--case-sensitive" | "-c" => {
+                    i += 1;
+                    match args.get(i) {
+                        Some(b) => {
+                            if b.contains("true") {
+                                case_sensitive = true;
+                            }
+                        }
+                        None => return Err(ErrorKind::ParseArgs),
+                    }
+
+                    continue;
+                }
+                "--filename" | "-f" => {
+                    i += 1;
+
+                    match args.get(i) {
+                        Some(b) => {
+                            query = b.clone();
+                        }
+                        None => return Err(ErrorKind::ParseArgs),
+                    }
+                }
+                "--query" | "-q" => {
+                    i += 1;
+
+                    match args.get(i) {
+                        Some(b) => {
+                            query = b.clone();
+                        }
+                        None => return Err(ErrorKind::ParseArgs),
+                    }
+                }
+                _ => {
+                    if i == 0 {
+                        query = arg.unwrap().clone();
+                    } else if i == 1 {
+                        filename = arg.unwrap().clone();
+                    }
+                }
+            }
+        }
+
+        if query.is_empty() {
+            return Err(ErrorKind::QueryEmpty);
+        }
+
+        if filename.is_empty() {
+            return Err(ErrorKind::FilenameEmpty);
+        }
+
         Ok(Config {
-            query: todo!(),
-            filename: todo!(),
-            case_sensitive: todo!(),
+            query,
+            filename,
+            case_sensitive,
         })
     }
 }
