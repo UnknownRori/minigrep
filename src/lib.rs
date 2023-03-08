@@ -29,8 +29,11 @@ impl Application {
         })
     }
 
-    pub fn parse() -> Result<Vec<String>, ErrorKind> {
-        todo!()
+    pub fn parse(&self) -> Result<Vec<&str>, ErrorKind> {
+        let parser = Parser::new();
+        let content = read_to_string(&self.config.filename)?;
+
+        Ok(parser.parse(&self.config.query, content))
     }
 }
 
@@ -122,9 +125,19 @@ impl Config {
     }
 }
 
-impl<'a> Parser {
-    fn parse(query: &str, filename: &'a str) -> Vec<&'a str> {
-        todo!()
+impl Parser {
+    pub fn new() -> Parser {
+        Parser {}
+    }
+
+    pub fn parse(&self, query: &String, content: String) -> Vec<&str> {
+        let mut result = vec![];
+
+        for line in content.lines() {
+            result.push(line);
+        }
+
+        result
     }
 }
 
