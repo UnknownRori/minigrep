@@ -24,38 +24,39 @@ struct Parser;
 
 impl Application {
     pub fn new() -> Result<Application, ErrorKind> {
-        Ok(Application {
-            config: Config::parse()?,
-        })
+        let mut args: Vec<String> = env::args().collect();
+        args.remove(0);
+
+        let config = Config::parse(&args)?;
+
+        Ok(Application { config })
     }
 
-    pub fn parse(&self) -> Result<Vec<&str>, ErrorKind> {
+    pub fn parse(&self) -> Result<Vec<String>, ErrorKind> {
         let parser = Parser::new();
         let content = read_to_string(&self.config.filename)?;
 
-        Ok(parser.parse(&self.config.query, content))
+        Ok(parser.parse(&self.config.query, &content))
     }
 }
 
 impl Config {
-    fn new(filename: String, query: String, case_sensitive: bool) -> Config {
+    #[allow(unused)]
+    fn new(filename: &str, query: &str, case_sensitive: bool) -> Config {
         Config {
-            filename,
-            query,
+            filename: filename.to_owned(),
+            query: query.to_owned(),
             case_sensitive,
         }
     }
 
-    fn parse() -> Result<Config, ErrorKind> {
-        let mut args: Vec<String> = env::args().collect();
-        args.remove(0);
-
+    fn parse(args: &Vec<String>) -> Result<Config, ErrorKind> {
         if args.len() < 2 {
             return Err(ErrorKind::NotEnoughArgs(args.len()));
         }
 
-        let mut filename: String = String::new();
-        let mut query: String = String::new();
+        let mut query: Option<&str> = None;
+        let mut filename: Option<&str> = None;
         let mut case_sensitive = false;
         for mut i in 0..args.len() {
             let arg = args.get(i);
@@ -84,7 +85,7 @@ impl Config {
 
                     match args.get(i) {
                         Some(b) => {
-                            query = b.clone();
+                            query = Some(b);
                         }
                         None => return Err(ErrorKind::ParseArgs),
                     }
@@ -94,34 +95,34 @@ impl Config {
 
                     match args.get(i) {
                         Some(b) => {
-                            query = b.clone();
+                            query = Some(b);
                         }
                         None => return Err(ErrorKind::ParseArgs),
                     }
                 }
                 _ => {
                     if i == 0 {
-                        query = arg.unwrap().clone();
+                        query = Some(arg.unwrap());
                     } else if i == 1 {
-                        filename = arg.unwrap().clone();
+                        filename = Some(arg.unwrap());
                     }
                 }
             }
         }
 
-        if query.is_empty() {
+        if query.is_none() {
             return Err(ErrorKind::QueryEmpty);
         }
 
-        if filename.is_empty() {
+        if filename.is_none() {
             return Err(ErrorKind::FilenameEmpty);
         }
 
-        Ok(Config {
-            query,
-            filename,
+        Ok(Config::new(
+            filename.unwrap(),
+            query.unwrap(),
             case_sensitive,
-        })
+        ))
     }
 }
 
@@ -130,11 +131,11 @@ impl Parser {
         Parser {}
     }
 
-    pub fn parse(&self, query: &String, content: String) -> Vec<&str> {
+    pub fn parse(&self, query: &str, content: &str) -> Vec<String> {
         let mut result = vec![];
 
         for line in content.lines() {
-            result.push(line);
+            result.push(line.to_owned());
         }
 
         result
