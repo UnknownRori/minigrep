@@ -58,6 +58,13 @@ impl<'a> Parser {
     }
 }
 
+fn read_to_string(filename: &str) -> Result<String, ErrorKind> {
+    match std::fs::read_to_string("test").or_else(|v| Err(ErrorKind::OpenFile(Box::new(v)))) {
+        Ok(s) => Ok(s),
+        Err(e) => Err(e),
+    }
+}
+
 #[cfg(test)]
 mod test {
     //
