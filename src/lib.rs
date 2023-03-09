@@ -1,5 +1,6 @@
 use std::{env, error::Error};
 
+#[derive(Debug)]
 pub enum ErrorKind {
     QueryEmpty,
     FilenameEmpty,
@@ -40,7 +41,7 @@ impl Application {
         Ok(Application { config })
     }
 
-    pub fn parse(&self) -> Result<Vec<String>, ErrorKind> {
+    pub fn run(&self) -> Result<Vec<String>, ErrorKind> {
         let parser = Parser::new(&self.config.search_mode);
         let content = read_to_string(&self.config.filename)?;
 
