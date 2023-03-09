@@ -244,8 +244,34 @@ mod test {
     }
 
     #[test]
+    #[should_panic]
+    fn parse_config_1_args() {
+        let args = vec!["lorem".to_owned()];
+        Config::parse(&args).unwrap();
+    }
+
+    #[test]
     fn parse_config_2_args() {
         let args = vec!["lorem".to_owned(), "ipsum".to_owned()];
-        Config::parse(&args).unwrap();
+        let config = Config::parse(&args).unwrap();
+
+        assert_eq!(config.filename, "ipsum");
+        assert_eq!(config.query, "lorem");
+        assert_eq!(config.search_mode, SearchMode::CaseInsensitive);
+    }
+
+    #[test]
+    fn parse_config_2_with_flags() {
+        let args = vec![
+            "-f".to_owned(),
+            "ipsum".to_owned(),
+            "-q".to_owned(),
+            "lorem".to_owned(),
+        ];
+        let config = Config::parse(&args).unwrap();
+
+        assert_eq!(config.filename, "ipsum");
+        assert_eq!(config.query, "lorem");
+        assert_eq!(config.search_mode, SearchMode::CaseInsensitive);
     }
 }
