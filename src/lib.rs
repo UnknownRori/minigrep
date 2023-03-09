@@ -8,6 +8,12 @@ pub enum ErrorKind {
     NotEnoughArgs(usize),
 }
 
+#[derive(Debug, Clone)]
+enum SearchMode {
+    CaseSensitive,
+    CaseInsensitive,
+}
+
 #[derive(Debug)]
 pub struct Application {
     config: Config,
@@ -17,10 +23,12 @@ pub struct Application {
 struct Config {
     query: String,
     filename: String,
-    case_sensitive: bool,
+    search_mode: SearchMode,
 }
 
-struct Parser;
+struct Parser {
+    mode: SearchMode,
+}
 
 impl Application {
     pub fn new() -> Result<Application, ErrorKind> {
@@ -33,7 +41,7 @@ impl Application {
     }
 
     pub fn parse(&self) -> Result<Vec<String>, ErrorKind> {
-        let parser = Parser::new();
+        let parser = Parser::new(&self.config.search_mode);
         let content = read_to_string(&self.config.filename)?;
 
         Ok(parser.parse(&self.config.query, &content))
@@ -41,12 +49,11 @@ impl Application {
 }
 
 impl Config {
-    #[allow(unused)]
-    fn new(filename: &str, query: &str, case_sensitive: bool) -> Config {
+    fn new(filename: &str, query: &str, search_mode: SearchMode) -> Config {
         Config {
             filename: filename.to_owned(),
             query: query.to_owned(),
-            case_sensitive,
+            search_mode,
         }
     }
 
@@ -57,7 +64,7 @@ impl Config {
 
         let mut query: Option<&str> = None;
         let mut filename: Option<&str> = None;
-        let mut case_sensitive = false;
+        let mut search_mode = SearchMode::CaseInsensitive;
         for mut i in 0..args.len() {
             let arg = args.get(i);
 
@@ -72,7 +79,7 @@ impl Config {
                     match args.get(i) {
                         Some(b) => {
                             if b.contains("true") {
-                                case_sensitive = true;
+                                search_mode = SearchMode::CaseSensitive;
                             }
                         }
                         None => return Err(ErrorKind::ParseArgs),
@@ -118,24 +125,41 @@ impl Config {
             return Err(ErrorKind::FilenameEmpty);
         }
 
-        Ok(Config::new(
-            filename.unwrap(),
-            query.unwrap(),
-            case_sensitive,
-        ))
+        Ok(Config::new(filename.unwrap(), query.unwrap(), search_mode))
     }
 }
 
 impl Parser {
-    pub fn new() -> Parser {
-        Parser {}
+    pub fn new(mode: &SearchMode) -> Parser {
+        Parser { mode: mode.clone() }
     }
 
     pub fn parse(&self, query: &str, content: &str) -> Vec<String> {
+        match self.mode {
+            SearchMode::CaseSensitive => self.parse_case_sensitive(query, content),
+            SearchMode::CaseInsensitive => self.parse_case_insensitive(query, content),
+        }
+    }
+
+    fn parse_case_sensitive(&self, query: &str, content: &str) -> Vec<String> {
         let mut result = vec![];
 
         for line in content.lines() {
-            result.push(line.to_owned());
+            if line.contains(query) {
+                result.push(line.to_owned());
+            }
+        }
+
+        result
+    }
+
+    fn parse_case_insensitive(&self, query: &str, content: &str) -> Vec<String> {
+        let mut result = vec![];
+
+        for line in content.lines() {
+            if line.to_lowercase().contains(query) {
+                result.push(line.to_owned());
+            }
         }
 
         result
