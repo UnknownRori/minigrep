@@ -151,5 +151,37 @@ fn read_to_string(filename: &str) -> Result<String, ErrorKind> {
 
 #[cfg(test)]
 mod test {
-    //
+    use super::*;
+
+    #[test]
+    fn case_sensitive_1() {
+        let content = "Lorem ipsum\nFlying Cat\nflying dog\nLOREM IPSUM\nlorem\nflying cat";
+        let result = Parser::new(&SearchMode::CaseSensitive).parse("lorem", content);
+
+        assert_eq!(vec!["lorem"], result);
+    }
+
+    #[test]
+    fn case_sensitive_2() {
+        let content = "Lorem ipsum\nFlying Cat\nflying dog\nLOREM IPSUM\nlorem\nflying cat";
+        let result = Parser::new(&SearchMode::CaseSensitive).parse("flying", content);
+
+        assert_eq!(vec!["flying dog", "flying cat"], result);
+    }
+
+    #[test]
+    fn case_insensitive_1() {
+        let content = "Lorem ipsum\nFlying Cat\nflying dog\nLOREM IPSUM\nlorem\nflying cat";
+        let result = Parser::new(&SearchMode::CaseInsensitive).parse("lorem", content);
+
+        assert_eq!(vec!["Lorem ipsum", "LOREM IPSUM", "lorem"], result);
+    }
+
+    #[test]
+    fn case_insensitive_2() {
+        let content = "Lorem ipsum\nFlying Cat\nflying dog\nLOREM IPSUM\nlorem\nflying cat";
+        let result = Parser::new(&SearchMode::CaseSensitive).parse("Flying Cat", content);
+
+        assert_eq!(vec!["Flying Cat"], result);
+    }
 }
