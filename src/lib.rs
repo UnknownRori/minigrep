@@ -14,7 +14,7 @@ pub enum ErrorKind {
     NotEnoughArgs(usize),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 enum SearchMode {
     CaseSensitive,
     CaseInsensitive,
@@ -23,12 +23,13 @@ enum SearchMode {
 #[derive(Debug)]
 pub struct Application {
     config: Config,
+    file: File,
 }
 
 #[derive(Debug)]
 struct Config {
     query: String,
-    file: File,
+    filename: String,
     search_mode: SearchMode,
 }
 
@@ -42,13 +43,15 @@ impl Application {
         args.remove(0);
 
         let config = Config::parse(&args)?;
+        let file =
+            File::open(&config.filename).or_else(|err| Err(ErrorKind::OpenFile(Box::new(err))))?;
 
-        Ok(Application { config })
+        Ok(Application { config, file })
     }
 
     pub fn run(&self) -> Vec<String> {
         let parser = Parser::new(&self.config.search_mode);
-        let content = buffer_read(&self.config.file);
+        let content = buffer_read(&self.file);
 
         parser.parse(&self.config.query, &content)
     }
@@ -63,12 +66,12 @@ fn buffer_read(file: &File) -> String {
 }
 
 impl Config {
-    fn new(filename: &str, query: &str, search_mode: SearchMode) -> Result<Config, std::io::Error> {
-        Ok(Config {
-            file: File::open(filename)?,
+    fn new(filename: &str, query: &str, search_mode: SearchMode) -> Config {
+        Config {
+            filename: filename.to_owned(),
             query: query.to_owned(),
             search_mode,
-        })
+        }
     }
 
     fn parse(args: &Vec<String>) -> Result<Config, ErrorKind> {
@@ -139,10 +142,11 @@ impl Config {
             return Err(ErrorKind::FilenameEmpty);
         }
 
-        let config = Config::new(filename.unwrap(), query.unwrap(), search_mode)
-            .or_else(|err| Err(ErrorKind::OpenFile(Box::new(err))))?;
-
-        Ok(config)
+        Ok(Config::new(
+            filename.unwrap(),
+            query.unwrap(),
+            search_mode.clone(),
+        ))
     }
 }
 
