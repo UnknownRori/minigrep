@@ -1,3 +1,5 @@
+use std::process;
+
 use minigrep::Application;
 
 fn handle_minigrep_err(err: &minigrep::ErrorKind) {
@@ -13,22 +15,17 @@ fn handle_minigrep_err(err: &minigrep::ErrorKind) {
 }
 
 fn main() -> Result<(), &'static str> {
-    println!("Hello, world!");
-
-    // Todo : Make the API fluent
     let app = Application::new();
     if let Err(ref e) = app {
         handle_minigrep_err(e);
+        process::exit(1);
     }
 
     let app = app.unwrap();
-    match app.run() {
-        Ok(result) => {
-            for s in result {
-                println!("{}", s);
-            }
-        }
-        Err(err) => handle_minigrep_err(&err),
+    let result = app.run();
+
+    for s in result {
+        println!("{}", s);
     }
 
     Ok(())

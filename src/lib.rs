@@ -1,4 +1,9 @@
-use std::{env, error::Error};
+use std::{
+    env,
+    error::Error,
+    fs::File,
+    io::{BufRead, BufReader},
+};
 
 #[derive(Debug)]
 pub enum ErrorKind {
@@ -23,7 +28,7 @@ pub struct Application {
 #[derive(Debug)]
 struct Config {
     query: String,
-    filename: String,
+    file: File,
     search_mode: SearchMode,
 }
 
@@ -41,21 +46,29 @@ impl Application {
         Ok(Application { config })
     }
 
-    pub fn run(&self) -> Result<Vec<String>, ErrorKind> {
+    pub fn run(&self) -> Vec<String> {
         let parser = Parser::new(&self.config.search_mode);
-        let content = read_to_string(&self.config.filename)?;
+        let content = buffer_read(&self.config.file);
 
-        Ok(parser.parse(&self.config.query, &content))
+        parser.parse(&self.config.query, &content)
     }
 }
 
+fn buffer_read(file: &File) -> String {
+    BufReader::new(file)
+        .lines()
+        .map(|f| f.unwrap())
+        .collect::<Vec<String>>()
+        .join("\n")
+}
+
 impl Config {
-    fn new(filename: &str, query: &str, search_mode: SearchMode) -> Config {
-        Config {
-            filename: filename.to_owned(),
+    fn new(filename: &str, query: &str, search_mode: SearchMode) -> Result<Config, std::io::Error> {
+        Ok(Config {
+            file: File::open(filename)?,
             query: query.to_owned(),
             search_mode,
-        }
+        })
     }
 
     fn parse(args: &Vec<String>) -> Result<Config, ErrorKind> {
@@ -126,7 +139,10 @@ impl Config {
             return Err(ErrorKind::FilenameEmpty);
         }
 
-        Ok(Config::new(filename.unwrap(), query.unwrap(), search_mode))
+        let config = Config::new(filename.unwrap(), query.unwrap(), search_mode)
+            .or_else(|err| Err(ErrorKind::OpenFile(Box::new(err))))?;
+
+        Ok(config)
     }
 }
 
@@ -158,19 +174,12 @@ impl Parser {
         let mut result = vec![];
 
         for line in content.lines() {
-            if line.to_lowercase().contains(query) {
+            if line.to_lowercase().contains(&query.to_lowercase()) {
                 result.push(line.to_owned());
             }
         }
 
         result
-    }
-}
-
-fn read_to_string(filename: &str) -> Result<String, ErrorKind> {
-    match std::fs::read_to_string(filename).or_else(|v| Err(ErrorKind::OpenFile(Box::new(v)))) {
-        Ok(s) => Ok(s),
-        Err(e) => Err(e),
     }
 }
 
