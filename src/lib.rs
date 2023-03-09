@@ -204,6 +204,15 @@ mod test {
     }
 
     #[test]
+    fn case_sensitive_3() {
+        let content = "Lorem ipsum\nFlying Cat\nflying dog\nLOREM IPSUM\nlorem\nflying cat";
+        let result = Parser::new(&SearchMode::CaseSensitive).parse("lOreM", content);
+
+        let expected: Vec<String> = vec![];
+        assert_eq!(expected, result);
+    }
+
+    #[test]
     fn case_insensitive_1() {
         let content = "Lorem ipsum\nFlying Cat\nflying dog\nLOREM IPSUM\nlorem\nflying cat";
         let result = Parser::new(&SearchMode::CaseInsensitive).parse("lorem", content);
@@ -217,5 +226,26 @@ mod test {
         let result = Parser::new(&SearchMode::CaseSensitive).parse("Flying Cat", content);
 
         assert_eq!(vec!["Flying Cat"], result);
+    }
+
+    #[test]
+    fn case_insensitive_3() {
+        let content = "Lorem ipsum\nFlying Cat\nflying dog\nLOREM IPSUM\nlorem\nflying cat";
+        let result = Parser::new(&SearchMode::CaseInsensitive).parse("LOREM", content);
+
+        assert_eq!(vec!["Lorem ipsum", "LOREM IPSUM", "lorem"], result);
+    }
+
+    #[test]
+    #[should_panic]
+    fn parse_config_none() {
+        let args = vec![];
+        Config::parse(&args).unwrap();
+    }
+
+    #[test]
+    fn parse_config_2_args() {
+        let args = vec!["lorem".to_owned(), "ipsum".to_owned()];
+        Config::parse(&args).unwrap();
     }
 }
