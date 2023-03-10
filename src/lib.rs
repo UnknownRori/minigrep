@@ -1,6 +1,5 @@
 use std::{
     env,
-    error::Error,
     fs::File,
     io::{BufRead, BufReader},
 };
@@ -10,7 +9,7 @@ pub enum ErrorKind {
     QueryEmpty,
     FilenameEmpty,
     ParseArgs,
-    OpenFile(Box<dyn Error>),
+    OpenFile(std::io::Error),
     NotEnoughArgs(usize),
 }
 
@@ -67,7 +66,7 @@ fn buffer_read(file: &File) -> String {
 
 #[inline]
 fn open_file(path: &str) -> Result<File, ErrorKind> {
-    Ok(File::open(path).or_else(|err| Err(ErrorKind::OpenFile(Box::new(err))))?)
+    Ok(File::open(path).or_else(|err| Err(ErrorKind::OpenFile(err)))?)
 }
 
 impl Config {
