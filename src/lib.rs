@@ -43,8 +43,7 @@ impl Application {
         args.remove(0);
 
         let config = Config::parse(&args)?;
-        let file =
-            File::open(&config.filename).or_else(|err| Err(ErrorKind::OpenFile(Box::new(err))))?;
+        let file = open_file(&config.filename)?;
 
         Ok(Application { config, file })
     }
@@ -57,12 +56,18 @@ impl Application {
     }
 }
 
+#[inline]
 fn buffer_read(file: &File) -> String {
     BufReader::new(file)
         .lines()
         .map(|f| f.unwrap())
         .collect::<Vec<String>>()
         .join("\n")
+}
+
+#[inline]
+fn open_file(path: &str) -> Result<File, ErrorKind> {
+    Ok(File::open(path).or_else(|err| Err(ErrorKind::OpenFile(Box::new(err))))?)
 }
 
 impl Config {
