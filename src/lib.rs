@@ -126,19 +126,6 @@ impl DefaultConfig {
         }
     }
 
-    fn to_config(&mut self) -> Result<Config, ErrorKind> {
-        let filename: Option<String> = mem::replace(&mut self.filename, None);
-        let filename = filename.ok_or(ErrorKind::FilenameEmpty)?;
-
-        let query: Option<String> = mem::replace(&mut self.query, None);
-        let query = query.ok_or(ErrorKind::QueryEmpty)?;
-
-        let help = self.help;
-        let search_mode = self.search_mode.clone();
-
-        Ok(Config::new(filename, query, help, search_mode))
-    }
-
     fn set_help(&mut self, new: bool) {
         self.help = new;
     }
@@ -164,6 +151,23 @@ impl DefaultConfig {
             "true" => self.search_mode = SearchMode::CaseSensitive,
             _ => {}
         }
+    }
+}
+
+impl TryInto<Config> for DefaultConfig {
+    type Error = ErrorKind;
+
+    fn try_into(mut self) -> Result<Config, Self::Error> {
+        let filename: Option<String> = mem::replace(&mut self.filename, None);
+        let filename = filename.ok_or(ErrorKind::FilenameEmpty)?;
+
+        let query: Option<String> = mem::replace(&mut self.query, None);
+        let query = query.ok_or(ErrorKind::QueryEmpty)?;
+
+        let help = self.help;
+        let search_mode = self.search_mode.clone();
+
+        Ok(Config::new(filename, query, help, search_mode))
     }
 }
 
@@ -216,7 +220,7 @@ impl Config {
             }
         }
 
-        Ok(config.to_config()?)
+        Ok(config.try_into()?)
     }
 }
 
