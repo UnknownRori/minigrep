@@ -2,19 +2,20 @@ use std::{
     env,
     fs::File,
     io::{BufRead, BufReader},
+    mem, process,
 };
 
 #[derive(Debug)]
 pub enum ErrorKind {
     QueryEmpty,
     FilenameEmpty,
-    ParseArgs,
-    OpenFile(std::io::Error),
-    NotEnoughArgs(usize),
+    FailedParseArgs,
+    NotEnoughArgs,
+    FileErr(std::io::Error),
 }
 
 #[derive(Debug, Clone, PartialEq)]
-enum SearchMode {
+pub enum SearchMode {
     CaseSensitive,
     CaseInsensitive,
 }
@@ -29,15 +30,24 @@ pub struct Application {
 struct Config {
     query: String,
     filename: String,
+    help: bool,
     search_mode: SearchMode,
 }
 
-struct Parser {
+#[derive(Debug)]
+struct DefaultConfig {
+    query: Option<String>,
+    filename: Option<String>,
+    help: bool,
+    search_mode: SearchMode,
+}
+
+pub struct Parser {
     mode: SearchMode,
 }
 
 impl Application {
-    pub fn new() -> Result<Application, ErrorKind> {
+    fn new() -> Result<Application, ErrorKind> {
         let mut args: Vec<String> = env::args().collect();
         args.remove(0);
 
@@ -47,16 +57,53 @@ impl Application {
         Ok(Application { config, file })
     }
 
-    pub fn run(&self) -> Vec<String> {
-        let parser = Parser::new(&self.config.search_mode);
-        let content = buffer_read(&self.file);
+    pub fn run() {
+        match Application::new() {
+            Err(e) => handle_err(&e),
+            Ok(app) => {
+                if app.config.help {
+                    print_help();
+                    process::exit(0);
+                }
 
-        parser.parse(&self.config.query, &content)
+                let parser = Parser::new(&app.config.search_mode);
+                let content = buffer_read(&app.file);
+
+                let result = parser.parse(&app.config.query, &content);
+
+                for s in result {
+                    println!("{s}");
+                }
+            }
+        }
     }
 }
 
+fn handle_err(err: &ErrorKind) {
+    match err {
+        ErrorKind::QueryEmpty => eprintln!("Query is empty"),
+        ErrorKind::FilenameEmpty => eprintln!("Filename is empty"),
+        ErrorKind::FailedParseArgs => eprintln!("Failed to parse Args"),
+        ErrorKind::NotEnoughArgs => {
+            print_help();
+            process::exit(0);
+        }
+        ErrorKind::FileErr(e) => eprintln!("Failed to open a file: {}", e),
+    }
+}
+
+fn print_help() {
+    println!("minigrep v1.0");
+    println!("usage : minigrep <query> <filename>\n");
+    println!("flags : ");
+    println!("-h --help\t\t Showing this commands");
+    println!("-q --query\t\t Search param");
+    println!("-f --file\t\t File that will be searched");
+    println!("-c --case-sensitive\t How sensitive search");
+}
+
 #[inline]
-fn buffer_read(file: &File) -> String {
+pub fn buffer_read(file: &File) -> String {
     BufReader::new(file)
         .lines()
         .map(|f| f.unwrap())
@@ -65,27 +112,81 @@ fn buffer_read(file: &File) -> String {
 }
 
 #[inline]
-fn open_file(path: &str) -> Result<File, ErrorKind> {
-    Ok(File::open(path).or_else(|err| Err(ErrorKind::OpenFile(err)))?)
+pub fn open_file(path: &str) -> Result<File, ErrorKind> {
+    Ok(File::open(path).or_else(|err| Err(ErrorKind::FileErr(err)))?)
+}
+
+impl DefaultConfig {
+    fn new() -> DefaultConfig {
+        DefaultConfig {
+            query: None,
+            filename: None,
+            help: false,
+            search_mode: SearchMode::CaseInsensitive,
+        }
+    }
+
+    fn set_help(&mut self, new: bool) {
+        self.help = new;
+    }
+
+    fn set_query(&mut self, new: Option<&String>) {
+        if let Some(b) = new {
+            self.query = Some(b.clone());
+        }
+    }
+
+    fn set_file(&mut self, new: Option<&String>) {
+        if let Some(b) = new {
+            self.filename = Some(b.clone());
+        }
+    }
+
+    fn set_case_sensitive(&mut self, new: Option<&String>) {
+        if new.is_none() {
+            return;
+        }
+
+        match new.unwrap().as_str() {
+            "true" => self.search_mode = SearchMode::CaseSensitive,
+            _ => {}
+        }
+    }
+}
+
+impl TryInto<Config> for DefaultConfig {
+    type Error = ErrorKind;
+
+    fn try_into(mut self) -> Result<Config, Self::Error> {
+        let filename: Option<String> = mem::replace(&mut self.filename, None);
+        let filename = filename.ok_or(ErrorKind::FilenameEmpty)?;
+
+        let query: Option<String> = mem::replace(&mut self.query, None);
+        let query = query.ok_or(ErrorKind::QueryEmpty)?;
+
+        let help = self.help;
+        let search_mode = self.search_mode.clone();
+
+        Ok(Config::new(filename, query, help, search_mode))
+    }
 }
 
 impl Config {
-    fn new(filename: &str, query: &str, search_mode: SearchMode) -> Config {
+    fn new(filename: String, query: String, help: bool, search_mode: SearchMode) -> Config {
         Config {
-            filename: filename.to_owned(),
-            query: query.to_owned(),
+            filename,
+            query,
+            help,
             search_mode,
         }
     }
 
     fn parse(args: &Vec<String>) -> Result<Config, ErrorKind> {
-        if args.len() < 2 {
-            return Err(ErrorKind::NotEnoughArgs(args.len()));
+        if args.len() < 1 {
+            return Err(ErrorKind::NotEnoughArgs);
         }
 
-        let mut query: Option<&str> = None;
-        let mut filename: Option<&str> = None;
-        let mut search_mode = SearchMode::CaseInsensitive;
+        let mut config = DefaultConfig::new();
         for mut i in 0..args.len() {
             let arg = args.get(i);
 
@@ -93,64 +194,33 @@ impl Config {
                 break;
             }
 
-            // Todo : Refactor this
             match arg.unwrap().as_str() {
+                "--help" | "-h" => config.set_help(true),
                 "--case-sensitive" | "-c" => {
                     i += 1;
-                    match args.get(i) {
-                        Some(b) => {
-                            if b.contains("true") {
-                                search_mode = SearchMode::CaseSensitive;
-                            }
-                        }
-                        None => return Err(ErrorKind::ParseArgs),
-                    }
-
-                    continue;
+                    config.set_case_sensitive(args.get(i));
                 }
                 "--filename" | "-f" => {
                     i += 1;
 
-                    match args.get(i) {
-                        Some(b) => {
-                            query = Some(b);
-                        }
-                        None => return Err(ErrorKind::ParseArgs),
-                    }
+                    config.set_file(args.get(i));
                 }
                 "--query" | "-q" => {
                     i += 1;
 
-                    match args.get(i) {
-                        Some(b) => {
-                            query = Some(b);
-                        }
-                        None => return Err(ErrorKind::ParseArgs),
-                    }
+                    config.set_query(args.get(i));
                 }
                 _ => {
                     if i == 0 {
-                        query = Some(arg.unwrap());
+                        config.set_query(arg);
                     } else if i == 1 {
-                        filename = Some(arg.unwrap());
+                        config.set_file(arg);
                     }
                 }
             }
         }
 
-        if query.is_none() {
-            return Err(ErrorKind::QueryEmpty);
-        }
-
-        if filename.is_none() {
-            return Err(ErrorKind::FilenameEmpty);
-        }
-
-        Ok(Config::new(
-            filename.unwrap(),
-            query.unwrap(),
-            search_mode.clone(),
-        ))
+        Ok(config.try_into()?)
     }
 }
 

@@ -6,3 +6,31 @@ LOREM IPSUM DOLOR SIT AMET CONSECTETUR ADIPISICING ELIT.
 CUPIDITATE HARUM DUCIMUS INVENTORE NUMQUAM EAQUE POSSIMUS MOLESTIAE DELENITI TEMPORIBUS NEMO, 
 VOLUPTATE QUAERAT ISTE EXERCITATIONEM PERSPICIATIS EUM QUOD DOLOR EXCEPTURI QUASI REPREHENDERIT.
 
+Red brown fox jumping
+red brown fox jump
+ReD BrOwN FOx JumPing
+
+Why do i made this
+WhY, and why lorem
+
+UnknownRori
+UnknownRori Twilight
+
++999999999999
+123-123-123
+
+127.0.0.1:80
+localhost
+
+255.255.255
+
+Hello, World!
+
+fn pop(&mut self) -> T {
+    todo!() 
+}
+
+This dummy text
+
+I wonder if thi work
+おはよ
