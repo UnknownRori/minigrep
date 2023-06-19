@@ -12,6 +12,10 @@ Very simple grep like cmd line app written in rust, it's provide basic functiona
 
 # Run the minigrep
 > cargo run <query> <filename>
+
+# Or show the help
+> cargo run
+> cargo run -- -h
 ```
 
 ## 🌟 Contributions
